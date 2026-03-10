@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Web Chat WA Web Style Final</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#ece5dd;display:flex;justify-content:center;height:100vh;transition:filter .3s}
+body.modal-open #chat-container{filter:blur(5px);pointer-events:none;user-select:none}
+body.locked #chat-container{filter:blur(8px);pointer-events:none;user-select:none}
+#chat-container{width:100%;max-width:1200px;height:100vh;display:flex;background:#fff;box-shadow:0 0 15px rgba(0,0,0,.15)}
+#sidebar{width:320px;background:#075e54;color:#fff;display:flex;flex-direction:column;padding:10px}
+#sidebar h2{margin:10px 0;font-size:1.2em}
+#online-users-list{flex:1;overflow-y:auto;padding:10px}
+.user{display:flex;align-items:center;gap:10px;padding:8px;margin-bottom:5px;border-radius:5px;background:#128c7e}
+.user img{width:36px;height:36px;border-radius:50%;font-weight:bold;color:#fff;text-align:center;line-height:36px;background:#075e54}
+.user span{flex:1}
+#chat-area{flex:1;display:flex;flex-direction:column;background:#ece5dd}
+#messages{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;position:relative}
+.message{max-width:65%;padding:10px 14px;border-radius:18px;display:flex;flex-direction:column;font-size:.95em;word-wrap:break-word;opacity:0;transform:translateY(20px);animation:bubbleFade .3s forwards}
+.self{align-self:flex-end;background:#dcf8c6;border-bottom-right-radius:2px}
+.other{align-self:flex-start;background:#fff;border-bottom-left-radius:2px;display:flex;flex-direction:column;gap:2px}
+.message .name{font-weight:bold;font-size:.85em;color:#075e54;margin-bottom:2px}
+.message .text{font-size:.95em;margin-bottom:2px}
+.message .time{font-size:.7em;color:gray;text-align:right}
+@keyframes bubbleFade{to{opacity:1;transform:translateY(0)}}
+.typing-bubble{max-width:50%;padding:8px 12px;border-radius:18px;font-size:.85em;background:#fff;color:gray;opacity:0;transform:translateY(20px);animation:bubbleFade .3s forwards;font-style:italic;margin-bottom:5px}
+#input-area{display:flex;padding:10px 20px;background:#f0f0f0;border-top:1px solid #ccc}
+#chatInput{flex:1;padding:10px;border-radius:20px;border:1px solid #ccc;margin-right:10px}
+button{padding:10px 20px;border-radius:20px;border:none;background:#128c7e;color:#fff;cursor:pointer}
+button:hover{background:#075e54}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,.5);z-index:1000;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal.show{opacity:1;pointer-events:auto}
+.modal .modal-content{background:#fff;padding:20px;border-radius:10px;text-align:center;min-width:300px;transform:scale(.8);transition:transform .3s}
+.modal.show .modal-content{transform:scale(1)}
+.modal-content input{width:80%;padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc}
+.modal-content button{margin:5px;padding:8px 15px;border-radius:5px;cursor:pointer}
+@media(max-width:900px){#chat-container{flex-direction:column;max-width:100%}#sidebar{width:100%;height:150px;flex-direction:row;overflow-x:auto}#online-users-list{display:flex;flex-direction:row;overflow-x:auto}#chat-area{flex:1}#messages{padding:10px}}
+</style>
+</head>
+<body class="locked">
+
+<!-- LOGIN GATE -->
+<div id="login-modal" class="modal show">
+  <div class="modal-content">
+    <h3>Masukkan Kunci Web</h3>
+    <input id="loginPasswordInput" type="password" placeholder="Kunci Web">
+    <div>
+      <button id="loginBtn">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NAMA -->
+<div id="username-modal" class="modal">
+  <div class="modal-content">
+    <h3>Masukkan Nama</h3>
+    <input id="usernameInput" placeholder="Nama kamu">
+    <div><button id="usernameConfirm">Ya</button></div>
+  </div>
+</div>
+
+<!-- MODAL LOGOUT -->
+<div id="logout-modal" class="modal">
+  <div class="modal-content">
+    <h3>Apakah yakin ingin keluar akun?</h3>
+    <div><button id="logoutYes">Ya</button><button id="logoutNo">Batal</button></div>
+  </div>
+</div>
+
+<!-- MODAL ADMIN -->
+<div id="admin-modal" class="modal">
+  <div class="modal-content">
+    <h3>Masukkan Password Admin</h3>
+    <input id="adminPasswordInput" type="password" placeholder="Password">
+    <div><button id="adminLoginBtn">Login</button><button id="adminCancelBtn">Batal</button></div>
+  </div>
+</div>
+
+<!-- MODAL PANEL ADMIN -->
+<div id="admin-panel-modal" class="modal">
+  <div class="modal-content">
+    <h3>Hapus User Online & Chat</h3>
+    <div style="margin-bottom:10px">
+      <button id="deleteAllChatsBtn" style="background:#f44336;color:#fff;border:none;border-radius:5px;padding:8px 15px;cursor:pointer">Hapus Semua Chat</button>
+    </div>
+    <div id="adminUsersList" style="max-height:300px;overflow-y:auto;margin:10px 0"></div>
+    <button id="adminCloseBtn">Tutup</button>
+  </div>
+</div>
+
+<!-- CHAT CONTAINER -->
+<div id="chat-container" style="display:flex">
+  <div id="sidebar">
+    <h2>Tikum Chat Khusus</h2>
+    <div id="online-users-list"></div>
+    <button id="logoutBtn">Keluar Akun</button>
+    <button id="adminBtn" style="margin-top:10px;">Admin Panel</button>
+  </div>
+  <div id="chat-area">
+    <div id="messages"></div>
+    <div id="input-area"><input id="chatInput" placeholder="Tulis pesan..."><button id="sendBtn">Kirim</button></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, onValue, remove, set } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const app=initializeApp({apiKey:"AIzaSyDLzlLQI8d7aR6jt5kFqQxk8-Tt_ETInEI",authDomain:"chatweb-b3049.firebaseapp.com",databaseURL:"https://chatweb-b3049-default-rtdb.firebaseio.com",projectId:"chatweb-b3049",storageBucket:"chatweb-b3049.firebasestorage.app",messagingSenderId:"642647308331",appId:"1:642647308331:web:b44dad2628af9b1a5fd26e",measurementId:"G-R1GTV6M3DN"});
+const db=getDatabase(app);
+
+const messagesList=document.getElementById("messages"),onlineUsersList=document.getElementById("online-users-list"),chatInput=document.getElementById("chatInput"),sendBtn=document.getElementById("sendBtn");
+const usernameModal=document.getElementById("username-modal"),usernameInput=document.getElementById("usernameInput"),usernameConfirm=document.getElementById("usernameConfirm");
+const logoutModal=document.getElementById("logout-modal"),logoutBtn=document.getElementById("logoutBtn"),logoutYes=document.getElementById("logoutYes"),logoutNo=document.getElementById("logoutNo");
+const adminBtn=document.getElementById("adminBtn"),adminModal=document.getElementById("admin-modal"),adminPasswordInput=document.getElementById("adminPasswordInput"),adminLoginBtn=document.getElementById("adminLoginBtn"),adminCancelBtn=document.getElementById("adminCancelBtn");
+const adminPanelModal=document.getElementById("admin-panel-modal"),adminUsersList=document.getElementById("adminUsersList"),adminCloseBtn=document.getElementById("adminCloseBtn");
+const deleteAllChatsBtn=document.getElementById("deleteAllChatsBtn");
+
+const loginModal=document.getElementById("login-modal"),loginInput=document.getElementById("loginPasswordInput"),loginBtn=document.getElementById("loginBtn");
+const LOGIN_PASSWORD="tikum123"; 
+const ADMIN_PASSWORD="admin111";
+let username=localStorage.getItem("username");
+
+// LOGIN GATE
+document.body.classList.add("locked");
+function closeLogin(){loginModal.classList.remove("show");document.body.classList.remove("modal-open","locked");showChatContainer(); if(username) startChat(); else openModal(usernameModal);}
+loginBtn.onclick=()=>{if(loginInput.value===LOGIN_PASSWORD){closeLogin();}else{alert("Kunci salah!");loginInput.value="";}}
+loginInput.addEventListener("keypress",e=>{if(e.key==="Enter")loginBtn.onclick();});
+
+// Tampilkan chat-container
+function showChatContainer(){document.getElementById("chat-container").style.display="flex";}
+
+// MODAL UTAMA
+function openModal(m){m.classList.add("show");document.body.classList.add("modal-open");if(m===usernameModal)messagesList.innerHTML=""}
+function closeModal(m){m.classList.remove("show");document.body.classList.remove("modal-open")}
+
+const getInitialAvatar=name=>name.charAt(0).toUpperCase();
+
+function startChat(){const uref=ref(db,"onlineUsers/"+username);set(uref,{name:username,avatar:getInitialAvatar(username)});window.addEventListener("beforeunload",()=>remove(uref))}
+
+if(username){showChatContainer(); startChat();} 
+
+usernameConfirm.onclick=()=>{const val=usernameInput.value.trim();if(!val)return;if(confirm(`Yakin ingin menggunakan nama "${val}"?`)){username=val;localStorage.setItem("username",username);closeModal(usernameModal);startChat();showChatContainer();}};
+
+logoutBtn.onclick=()=>openModal(logoutModal);
+logoutNo.onclick=()=>closeModal(logoutModal);
+logoutYes.onclick=()=>{closeModal(logoutModal);localStorage.removeItem("username");messagesList.innerHTML="";location.reload()}
+
+function sendMessage(){const t=chatInput.value.trim();if(!t)return;push(ref(db,"messages"),{name:username,text:t,timestamp:new Date().toLocaleTimeString(),avatar:getInitialAvatar(username)});chatInput.value=""}
+sendBtn.onclick=sendMessage;
+chatInput.addEventListener("keypress",e=>{if(e.key==="Enter")sendMessage()});
+
+onChildAdded(ref(db,"messages"),s=>{const d=s.val(),li=document.createElement("div");li.className="message "+(d.name===username?"self":"other");li.innerHTML=d.name===username?`<span class="name">${d.name}</span><span class="text">${d.text}</span><span class="time">${d.timestamp}</span>`:`<div style="display:flex;align-items:center;gap:5px"><div style="width:30px;height:30px;border-radius:50%;background:#075e54;color:white;text-align:center;line-height:30px;font-weight:bold;flex-shrink:0">${d.avatar}</div><span class="name">${d.name}</span></div><div class="text" style="margin-left:35px">${d.text}</div><div class="time" style="margin-left:35px;font-size:.7em;color:gray">${d.timestamp}</div>`;messagesList.appendChild(li);messagesList.scrollTo({top:messagesList.scrollHeight,behavior:"smooth"})});
+
+onValue(ref(db,"onlineUsers"),s=>{const u=s.val()||{};onlineUsersList.innerHTML="";Object.keys(u).forEach(k=>{const div=document.createElement("div");div.className="user";const img=document.createElement("img");img.textContent=u[k].avatar;const span=document.createElement("span");span.textContent=u[k].name+(u[k].name===username?" (akun anda)":"");div.appendChild(img);div.appendChild(span);onlineUsersList.appendChild(div)})});
+
+let typingTimeout;
+const typingRef=ref(db,"typing");
+chatInput.addEventListener("input",()=>{set(ref(db,"typing/"+username),!!chatInput.value.trim());clearTimeout(typingTimeout);typingTimeout=setTimeout(()=>set(ref(db,"typing/"+username),false),1e3)});
+onValue(typingRef,s=>{const u=s.val()||{};Object.keys(u).forEach(user=>{const existing=document.getElementById("typing-"+user);if(u[user]&&user!==username){if(!existing){const b=document.createElement("div");b.className="typing-bubble other";b.id="typing-"+user;b.textContent=`${user} sedang mengetik...`;messagesList.appendChild(b);messagesList.scrollTo({top:messagesList.scrollHeight,behavior:"smooth"})}}else existing?.remove()})});
+
+// ADMIN PANEL
+adminBtn.onclick=()=>{adminPasswordInput.value="";openModal(adminModal)};
+adminCancelBtn.onclick=()=>closeModal(adminModal);
+adminLoginBtn.onclick=()=>{const p=adminPasswordInput.value;if(p===ADMIN_PASSWORD){closeModal(adminModal);showAdminPanel()}else alert("Password salah!")}
+
+function showAdminPanel(){
+  adminUsersList.innerHTML="";
+  onValue(ref(db,"onlineUsers"),s=>{const u=s.val()||{};adminUsersList.innerHTML="";Object.keys(u).forEach(k=>{
+    const div=document.createElement("div");
+    div.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px";
+    div.innerHTML=`<span>${u[k].name}</span>`;
+    const delBtn=document.createElement("button");
+    delBtn.textContent="Hapus";
+    delBtn.style.cssText="background:#f44336;color:#fff;border:none;border-radius:5px;cursor:pointer";
+    delBtn.onclick=()=>{if(confirm(`Hapus user "${u[k].name}" dari online list?`)) remove(ref(db,"onlineUsers/"+k))};
+    div.appendChild(delBtn);
+    adminUsersList.appendChild(div)
+  })});
+  openModal(adminPanelModal)
+}
+
+// HAPUS SEMUA CHAT
+deleteAllChatsBtn.onclick = () => {
+  if(confirm("Apakah yakin ingin menghapus semua chat?")) {
+    remove(ref(db,"messages"))
+      .then(() => alert("Semua chat berhasil dihapus!"))
+      .catch(err => alert("Gagal menghapus chat: "+err));
+  }
+};
+
+adminCloseBtn.onclick=()=>closeModal(adminPanelModal);
+</script>
+</body>
+</html>
